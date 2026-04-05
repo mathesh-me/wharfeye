@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WharfEye - Container Intelligence Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body x-data="app()" x-init="init()">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <h1 class="logo">WharfEye</h1>
+      <span class="runtime-badge" x-show="snapshot" x-text="runtimeLabel()"></span>
+    </div>
+    <div class="header-right" x-show="snapshot">
+      <div class="host-stat">
+        <span class="host-stat-label">Avg CPU</span>
+        <span class="host-stat-value" x-text="fmtPct(snapshot?.host?.avg_cpu_percent)"></span>
+      </div>
+      <div class="host-stat">
+        <span class="host-stat-label">Avg Mem</span>
+        <span class="host-stat-value" x-text="fmtBytes(snapshot?.host?.avg_memory_usage)"></span>
+      </div>
+      <div class="host-stat">
+        <span class="host-stat-label">Net I/O</span>
+        <span class="host-stat-value" x-text="fmtBytes(snapshot?.host?.total_net_rx) + ' / ' + fmtBytes(snapshot?.host?.total_net_tx)"></span>
+      </div>
+      <div class="host-stat">
+        <span class="host-stat-label">Running</span>
+        <span class="host-stat-value" x-text="(snapshot?.host?.running_containers || 0) + ' / ' + (snapshot?.host?.total_containers || 0)"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="tabs">
+    <button :class="{ active: tab === 'dashboard' }" @click="switchTab('dashboard')">Dashboard</button>
+    <button :class="{ active: tab === 'security' }" @click="switchTab('security')">Security</button>
+    <button :class="{ active: tab === 'advisor' }" @click="switchTab('advisor')">Advisor</button>
+  </nav>
+
+  <!-- Dashboard Tab -->
+  <main x-show="tab === 'dashboard' && !selectedContainer">
+    <div class="toolbar">
+      <input type="text" placeholder="Filter containers..." x-model="filter" class="filter-input">
+    </div>
+
+    <div x-show="!snapshot" class="loading">Connecting to engine...</div>
+
+    <!-- Fleet Resource Charts -->
+    <div class="fleet-charts" :class="{ 'fleet-charts-ready': snapshot }">
+      <div class="fleet-chart-row">
+        <div class="detail-section chart-section">
+          <h3>Fleet CPU Usage</h3>
+          <canvas id="fleetCpuChart"></canvas>
+        </div>
+        <div class="detail-section chart-section">
+          <h3>Fleet Memory Usage</h3>
+          <canvas id="fleetMemChart"></canvas>
+        </div>
+        <div class="detail-section chart-section">
+          <h3>Fleet Network I/O</h3>
+          <canvas id="fleetNetChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-grid" x-show="snapshot">
+      <template x-for="ctr in filteredContainers()" :key="ctr.id">
+        <div class="container-card" :class="{ running: ctr.state === 'running' }" @click="selectContainer(ctr.id)">
+          <div class="card-header">
+            <span class="card-status" :class="ctr.state"></span>
+            <span class="card-name" x-text="ctr.name"></span>
+          </div>
+          <div class="card-image" x-text="ctr.image"></div>
+          <div class="card-stats" x-show="getStats(ctr.id)">
+            <div class="card-stat">
+              <span class="stat-label">CPU</span>
+              <div class="stat-bar-wrap">
+                <div class="stat-bar cpu" :style="'width:' + Math.min(getStats(ctr.id)?.cpu?.percent || 0, 100) + '%'"></div>
+              </div>
+              <span class="stat-val" x-text="fmtPct(getStats(ctr.id)?.cpu?.percent)"></span>
+            </div>
+            <div class="card-stat">
+              <span class="stat-label">MEM</span>
+              <div class="stat-bar-wrap">
+                <div class="stat-bar mem" :style="'width:' + Math.min(getStats(ctr.id)?.memory?.percent || 0, 100) + '%'"></div>
+              </div>
+              <span class="stat-val" x-text="fmtBytes(getStats(ctr.id)?.memory?.usage)"></span>
+            </div>
+            <div class="card-stat">
+              <span class="stat-label">NET</span>
+              <span class="stat-val" x-text="fmtNetIO(getStats(ctr.id))"></span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span class="card-state" x-text="ctr.status"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </main>
+
+  <!-- Container Detail -->
+  <main x-show="tab === 'dashboard' && selectedContainer">
+    <div class="detail-header">
+      <button class="back-btn" @click="selectedContainer = null; detail = null">&larr; Back</button>
+      <h2 x-text="detail?.detail?.name || selectedContainer"></h2>
+    </div>
+
+    <div x-show="!detail" class="loading">Loading container details...</div>
+
+    <div x-show="detail" class="detail-content">
+      <div class="detail-grid">
+        <div class="detail-section">
+          <h3>Info</h3>
+          <table class="detail-table">
+            <tr><td>ID</td><td x-text="detail?.detail?.id?.substring(0, 12)"></td></tr>
+            <tr><td>Image</td><td x-text="detail?.detail?.image"></td></tr>
+            <tr><td>State</td><td x-text="detail?.detail?.state"></td></tr>
+            <tr><td>Platform</td><td x-text="detail?.detail?.platform"></td></tr>
+            <tr><td>Restart Count</td><td x-text="detail?.detail?.restart_count"></td></tr>
+            <tr><td>Network Mode</td><td x-text="detail?.detail?.network_mode"></td></tr>
+          </table>
+        </div>
+        <div class="detail-section">
+          <h3>Live Metrics</h3>
+          <div class="detail-metrics" x-show="getStats(selectedContainer)">
+            <div class="metric-card">
+              <span class="metric-label">CPU</span>
+              <span class="metric-value big" x-text="fmtPct(getStats(selectedContainer)?.cpu?.percent)"></span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Memory</span>
+              <span class="metric-value big" x-text="fmtBytes(getStats(selectedContainer)?.memory?.usage)"></span>
+              <span class="metric-sub" x-text="'/ ' + fmtBytes(getStats(selectedContainer)?.memory?.limit)"></span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Net RX / TX</span>
+              <span class="metric-value" x-text="fmtBytes(getStats(selectedContainer)?.network_io?.rx_bytes) + ' / ' + fmtBytes(getStats(selectedContainer)?.network_io?.tx_bytes)"></span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Block I/O</span>
+              <span class="metric-value" x-text="fmtBytes(getStats(selectedContainer)?.block_io?.read_bytes) + ' / ' + fmtBytes(getStats(selectedContainer)?.block_io?.write_bytes)"></span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">PIDs</span>
+              <span class="metric-value" x-text="getStats(selectedContainer)?.pids || 0"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="detail-section chart-section">
+        <h3>CPU History</h3>
+        <canvas id="cpuChart" height="120"></canvas>
+      </div>
+      <div class="detail-section chart-section">
+        <h3>Memory History</h3>
+        <canvas id="memChart" height="120"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <!-- Security Tab - Fleet View -->
+  <main x-show="tab === 'security' && !selectedSecurityContainer">
+    <div x-show="securityLoading" class="loading">Running security scan...</div>
+    <div x-show="securityError" class="error" x-text="securityError"></div>
+
+    <div x-show="securityReport && !securityLoading">
+      <div class="score-banner">
+        <div class="fleet-score" :class="scoreClass(securityReport?.fleet_score)">
+          <span class="score-num" x-text="securityReport?.fleet_score"></span>
+          <span class="score-label">Fleet Score</span>
+        </div>
+        <div class="score-summary">
+          <span class="badge filter-badge all" :class="{ 'filter-active': securityFilter === 'all' }" @click="securityFilter = 'all'">all</span>
+          <span class="badge filter-badge critical" :class="{ 'filter-active': securityFilter === 'CRITICAL' }" x-show="securityReport?.summary?.critical_issues" @click="securityFilter = 'CRITICAL'" x-text="securityReport?.summary?.critical_issues + ' critical'"></span>
+          <span class="badge filter-badge high" :class="{ 'filter-active': securityFilter === 'HIGH' }" x-show="securityReport?.summary?.high_issues" @click="securityFilter = 'HIGH'" x-text="securityReport?.summary?.high_issues + ' high'"></span>
+          <span class="badge filter-badge medium" :class="{ 'filter-active': securityFilter === 'MEDIUM' }" x-show="securityReport?.summary?.medium_issues" @click="securityFilter = 'MEDIUM'" x-text="securityReport?.summary?.medium_issues + ' medium'"></span>
+          <span class="badge filter-badge low" :class="{ 'filter-active': securityFilter === 'LOW' }" x-show="securityReport?.summary?.low_issues" @click="securityFilter = 'LOW'" x-text="securityReport?.summary?.low_issues + ' low'"></span>
+        </div>
+      </div>
+
+      <!-- Per-container score chart -->
+      <div class="detail-section" x-show="securityReport?.containers?.length > 0" style="margin-bottom: 1.5rem;">
+        <h3>Security Scores by Container</h3>
+        <div :style="'height:' + Math.max(200, (securityReport?.containers?.length || 0) * 40) + 'px'">
+          <canvas id="securityScoreChart"></canvas>
+        </div>
+      </div>
+
+      <div class="security-list">
+        <template x-for="ctr in filteredSecurityContainers()" :key="ctr.container_id">
+          <div class="security-card clickable" @click="selectSecurityContainer(ctr.container_id, ctr.container_name)">
+            <div class="security-card-header">
+              <span class="security-name" x-text="ctr.container_name"></span>
+              <span class="security-score" :class="scoreClass(ctr.score)" x-text="ctr.score + '/100'"></span>
+            </div>
+            <div class="security-image" x-text="ctr.image"></div>
+            <div class="checks-summary">
+              <template x-for="check in filteredChecks(ctr.checks)" :key="check.id">
+                <div class="check-item failed">
+                  <span class="check-severity" :class="check.severity.toLowerCase()" x-text="check.severity"></span>
+                  <span x-text="check.name"></span>
+                </div>
+              </template>
+              <div x-show="filteredChecks(ctr.checks).length === 0" class="check-item passed">All checks passed</div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </main>
+
+  <!-- Security Tab - Container Detail with Hardening -->
+  <main x-show="tab === 'security' && selectedSecurityContainer">
+    <div class="detail-header">
+      <button class="back-btn" @click="backToSecurityList()">&larr; Back</button>
+      <h2 x-text="selectedSecurityContainer?.name + ' - Security Hardening'"></h2>
+    </div>
+
+    <div x-show="!containerSecurity" class="loading">Loading security details...</div>
+
+    <div x-show="containerSecurity" class="detail-content">
+      <div class="score-banner">
+        <div class="fleet-score" :class="scoreClass(containerSecurity?.report?.score)">
+          <span class="score-num" x-text="containerSecurity?.report?.score"></span>
+          <span class="score-label">Container Score</span>
+        </div>
+      </div>
+
+      <div x-show="containerSecurity?.hardening?.length === 0" class="loading" style="color: #4ade80;">
+        All checks passed - this container is fully hardened!
+      </div>
+
+      <div class="security-list">
+        <template x-for="h in (containerSecurity?.hardening || [])" :key="h.check_id">
+          <div class="security-card">
+            <div class="security-card-header">
+              <span class="check-severity" :class="h.severity.toLowerCase()" x-text="h.severity"></span>
+              <span class="security-name" x-text="'[' + h.check_id + '] ' + h.check_name"></span>
+            </div>
+            <div class="hardening-detail">
+              <div class="hardening-fix">
+                <strong>Fix (docker run):</strong>
+                <code x-text="h.run_fix"></code>
+              </div>
+              <div class="hardening-fix" x-show="h.dockerfile_fix">
+                <strong>Fix (Dockerfile):</strong>
+                <code x-text="h.dockerfile_fix"></code>
+              </div>
+              <div class="hardening-why">
+                <strong>Why:</strong>
+                <span x-text="h.explanation"></span>
+              </div>
+              <div class="hardening-ref" x-show="h.reference">
+                <strong>Ref:</strong>
+                <span x-text="h.reference"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </main>
+
+  <!-- Advisor Tab - Fleet View -->
+  <main x-show="tab === 'advisor' && !selectedAdvisorContainer">
+    <div x-show="advisorLoading" class="loading">Analyzing containers...</div>
+    <div x-show="advisorError" class="error" x-text="advisorError"></div>
+
+    <div x-show="advisorReport && !advisorLoading">
+      <div class="advisor-summary">
+        <span class="badge filter-badge all" :class="{ 'filter-active': advisorFilter === 'all' }" @click="advisorFilter = 'all'">all</span>
+        <span class="badge filter-badge high" :class="{ 'filter-active': advisorFilter === 'HIGH' }" x-show="advisorReport?.high_count" @click="advisorFilter = 'HIGH'" x-text="advisorReport?.high_count + ' high'"></span>
+        <span class="badge filter-badge medium" :class="{ 'filter-active': advisorFilter === 'MEDIUM' }" x-show="advisorReport?.medium_count" @click="advisorFilter = 'MEDIUM'" x-text="advisorReport?.medium_count + ' medium'"></span>
+        <span class="badge filter-badge low" :class="{ 'filter-active': advisorFilter === 'LOW' }" x-show="advisorReport?.low_count" @click="advisorFilter = 'LOW'" x-text="advisorReport?.low_count + ' low'"></span>
+      </div>
+
+      <div x-show="filteredRecommendations().length === 0" class="loading">
+        No recommendations - your containers look good!
+      </div>
+
+      <div class="rec-list">
+        <template x-for="rec in filteredRecommendations()" :key="rec.id + rec.container_id">
+          <div class="rec-card clickable" @click="rec.container_id && selectAdvisorContainer(rec.container_id, rec.container_name)">
+            <div class="rec-header">
+              <span class="rec-id" x-text="rec.id"></span>
+              <span class="badge" :class="rec.priority.toLowerCase()" x-text="rec.priority"></span>
+              <span class="rec-title" x-text="rec.title"></span>
+            </div>
+            <div class="rec-container" x-show="rec.container_name" x-text="rec.container_name"></div>
+            <div class="rec-desc" x-text="rec.description"></div>
+            <div class="rec-meta">
+              <div><strong>Impact:</strong> <span x-text="rec.impact"></span></div>
+              <div><strong>Action:</strong> <span x-text="rec.action"></span></div>
+              <div x-show="rec.reference" class="rec-ref"><strong>Ref:</strong> <a :href="rec.reference" target="_blank" x-text="rec.reference"></a></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </main>
+
+  <!-- Advisor Tab - Container Detail -->
+  <main x-show="tab === 'advisor' && selectedAdvisorContainer">
+    <div class="detail-header">
+      <button class="back-btn" @click="backToAdvisorList()">&larr; Back</button>
+      <h2 x-text="selectedAdvisorContainer?.name + ' - Recommendations'"></h2>
+    </div>
+
+    <div x-show="!containerRecommendations" class="loading">Loading recommendations...</div>
+
+    <div x-show="containerRecommendations">
+      <div x-show="(containerRecommendations?.recommendations || []).length === 0" class="loading" style="color: #4ade80;">
+        No recommendations for this container - it looks good!
+      </div>
+
+      <div class="rec-list">
+        <template x-for="rec in (containerRecommendations?.recommendations || [])" :key="rec.id">
+          <div class="rec-card">
+            <div class="rec-header">
+              <span class="rec-id" x-text="rec.id"></span>
+              <span class="badge" :class="rec.priority.toLowerCase()" x-text="rec.priority"></span>
+              <span class="rec-title" x-text="rec.title"></span>
+            </div>
+            <div class="rec-desc" x-text="rec.description"></div>
+            <div class="rec-meta">
+              <div><strong>Impact:</strong> <span x-text="rec.impact"></span></div>
+              <div><strong>Action:</strong> <span x-text="rec.action"></span></div>
+              <div x-show="rec.reference" class="rec-ref"><strong>Ref:</strong> <a :href="rec.reference" target="_blank" x-text="rec.reference"></a></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
