@@ -1,0 +1,9 @@
+# Binary output
+/wharfeye
+!/cmd/wharfeye
+
+# Generated reports
+wharfeye-report.*
+
+# Downloaded archives
+*.tar.gz
