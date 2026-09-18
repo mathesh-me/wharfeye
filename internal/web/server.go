@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +22,23 @@ import (
 var staticFiles embed.FS
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: sameOrigin,
+}
+
+// sameOrigin rejects WebSocket upgrades whose Origin does not match the host
+// the request was sent to. Requests without an Origin header are allowed, since
+// non-browser clients do not send one. Without this, any page the user visits
+// could open the dashboard socket and read container and security data.
+func sameOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }
 
 // Server is the web dashboard HTTP server.

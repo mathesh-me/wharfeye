@@ -251,3 +251,58 @@ func TestNewServer(t *testing.T) {
 		t.Error("expected empty clients map")
 	}
 }
+
+func TestSameOrigin(t *testing.T) {
+	tests := []struct {
+		name   string
+		host   string
+		origin string
+		want   bool
+	}{
+		{"no origin header is allowed for non-browser clients", "127.0.0.1:9090", "", true},
+		{"matching origin is allowed", "127.0.0.1:9090", "http://127.0.0.1:9090", true},
+		{"matching origin over https is allowed", "127.0.0.1:9090", "https://127.0.0.1:9090", true},
+		{"foreign origin is rejected", "127.0.0.1:9090", "https://evil.example.com", false},
+		{"same host different port is rejected", "127.0.0.1:9090", "http://127.0.0.1:8080", false},
+		{"localhost is not treated as 127.0.0.1", "127.0.0.1:9090", "http://localhost:9090", false},
+		{"malformed origin is rejected", "127.0.0.1:9090", "http://[::1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/ws", nil)
+			r.Host = tt.host
+			if tt.origin != "" {
+				r.Header.Set("Origin", tt.origin)
+			}
+			if got := sameOrigin(r); got != tt.want {
+				t.Errorf("sameOrigin(host=%q, origin=%q) = %v, want %v", tt.host, tt.origin, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpgraderRejectsForeignOrigin(t *testing.T) {
+	client := newTestClient()
+	eng := engine.New(client, engine.DefaultConfig())
+	scanner := engine.NewScanner(client)
+	srv := NewServer(eng, scanner, client)
+
+	rec := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	r.Host = "127.0.0.1:9090"
+	r.Header.Set("Origin", "https://evil.example.com")
+	r.Header.Set("Connection", "Upgrade")
+	r.Header.Set("Upgrade", "websocket")
+	r.Header.Set("Sec-WebSocket-Version", "13")
+	r.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+
+	srv.handleWebSocket(rec, r)
+
+	if rec.Code == http.StatusSwitchingProtocols {
+		t.Fatal("upgrade from a foreign origin was accepted")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for foreign origin, got %d", rec.Code)
+	}
+}

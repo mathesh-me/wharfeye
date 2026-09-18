@@ -44,7 +44,7 @@ func SetDefaults() {
 	viper.SetDefault("runtime.socket", "")
 
 	viper.SetDefault("web.port", 9090)
-	viper.SetDefault("web.host", "0.0.0.0")
+	viper.SetDefault("web.host", "127.0.0.1")
 }
 
 // Load reads config from file and environment.
@@ -87,7 +87,7 @@ runtime:
 # Web server
 web:
   port: 9090
-  host: 0.0.0.0
+  host: 127.0.0.1
 `
 }
 

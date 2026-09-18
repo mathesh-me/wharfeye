@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"os/signal"
 	"syscall"
 
@@ -22,7 +23,7 @@ var webCmd = &cobra.Command{
 
 func init() {
 	webCmd.Flags().IntP("port", "p", 9090, "web server port")
-	webCmd.Flags().String("host", "0.0.0.0", "web server host")
+	webCmd.Flags().String("host", "127.0.0.1", "web server host (use 0.0.0.0 to expose on all interfaces)")
 	if err := viper.BindPFlag("web.port", webCmd.Flags().Lookup("port")); err != nil {
 		panic(err)
 	}
@@ -48,7 +49,20 @@ func runWeb(cmd *cobra.Command, args []string) error {
 	port := viper.GetInt("web.port")
 	addr := fmt.Sprintf("%s:%d", host, port)
 
+	if !isLoopback(host) {
+		fmt.Printf("warning: binding to %s exposes the dashboard, including security findings, to the network. It has no authentication.\n", host)
+	}
+
 	srv := web.NewServer(eng, scanner, client)
-	fmt.Printf("WharfEye web dashboard: http://localhost:%d\n", port)
+	fmt.Printf("WharfEye web dashboard: http://%s:%d\n", host, port)
 	return srv.Start(ctx, addr)
+}
+
+// isLoopback reports whether host resolves to a loopback address only.
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
