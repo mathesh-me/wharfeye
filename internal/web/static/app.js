@@ -215,8 +215,8 @@ function app() {
           datasets: [{
             label: 'CPU %',
             data: this.cpuHistory[this.selectedContainer] || [],
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59,130,246,0.1)',
+            borderColor: '#ffffff',
+            backgroundColor: 'rgba(255,255,255,0.1)',
             fill: true,
             tension: 0.3,
             pointRadius: 0,
@@ -296,8 +296,8 @@ function app() {
           datasets: [{
             label: 'CPU %',
             data: [...this.fleetCpuHistory],
-            borderColor: '#06b6d4',
-            backgroundColor: 'rgba(6,182,212,0.15)',
+            borderColor: '#ffffff',
+            backgroundColor: 'rgba(255,255,255,0.1)',
             fill: true, tension: 0.3, pointRadius: 1, borderWidth: 2,
           }]
         },
@@ -342,7 +342,7 @@ function app() {
         },
         options: {
           ...chartOptions('KB'),
-          plugins: { legend: { display: true, labels: { color: '#94a3b8', boxWidth: 12 } } }
+          plugins: { legend: { display: true, labels: { color: '#a3a3a3', boxWidth: 12 } } }
         }
       });
     },
@@ -456,16 +456,16 @@ function app() {
             x: {
               beginAtZero: true,
               max: 100,
-              title: { display: true, text: 'Score', color: '#94a3b8' },
-              ticks: { color: '#94a3b8' },
-              grid: { color: 'rgba(148,163,184,0.1)' }
+              title: { display: true, text: 'Score', color: '#a3a3a3' },
+              ticks: { color: '#a3a3a3' },
+              grid: { color: 'rgba(163,163,163,0.1)' }
             },
             y: {
               afterFit(scale) {
                 scale.width = Math.max(scale.width, yAxisWidth);
               },
               ticks: {
-                color: '#94a3b8',
+                color: '#a3a3a3',
                 font: { size: 11 },
                 autoSkip: false,
                 crossAlign: 'far',
@@ -539,9 +539,9 @@ function chartOptions(yLabel, suggestedMin, suggestedMax) {
         beginAtZero: true,
         suggestedMin: suggestedMin,
         suggestedMax: suggestedMax,
-        title: { display: true, text: yLabel, color: '#94a3b8' },
-        ticks: { color: '#94a3b8' },
-        grid: { color: 'rgba(148,163,184,0.1)' }
+        title: { display: true, text: yLabel, color: '#a3a3a3' },
+        ticks: { color: '#a3a3a3' },
+        grid: { color: 'rgba(163,163,163,0.1)' }
       }
     },
     plugins: {

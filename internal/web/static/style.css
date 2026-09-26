@@ -1,11 +1,11 @@
 :root {
-  --bg: #0f172a;
-  --bg-card: #1e293b;
-  --bg-hover: #334155;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --border: #334155;
-  --blue: #3b82f6;
+  --bg: #171717;
+  --bg-card: #262626;
+  --bg-hover: #404040;
+  --text: #e5e5e5;
+  --text-muted: #a3a3a3;
+  --border: #404040;
+  --accent: #ffffff;
   --purple: #8b5cf6;
   --green: #22c55e;
   --yellow: #eab308;
@@ -41,7 +41,7 @@ body {
 .logo {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--blue);
+  color: var(--accent);
 }
 
 .runtime-badge {
@@ -99,8 +99,8 @@ body {
 }
 
 .tabs button.active {
-  color: var(--blue);
-  border-bottom-color: var(--blue);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 /* Main */
@@ -126,7 +126,7 @@ main {
 
 .filter-input:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .loading {
@@ -159,7 +159,7 @@ main {
 }
 
 .container-card:hover {
-  border-color: var(--blue);
+  border-color: var(--accent);
   background: var(--bg-hover);
 }
 
@@ -229,7 +229,7 @@ main {
   transition: width 0.5s ease;
 }
 
-.stat-bar.cpu { background: var(--blue); }
+.stat-bar.cpu { background: var(--accent); }
 .stat-bar.mem { background: var(--purple); }
 
 .stat-val {
@@ -263,7 +263,7 @@ main {
   font-size: 0.85rem;
 }
 
-.back-btn:hover { border-color: var(--blue); }
+.back-btn:hover { border-color: var(--accent); }
 
 .detail-content {}
 
@@ -394,8 +394,8 @@ main {
 .badge.critical { background: rgba(239,68,68,0.15); color: var(--red); }
 .badge.high { background: rgba(249,115,22,0.15); color: var(--orange); }
 .badge.medium { background: rgba(234,179,8,0.15); color: var(--yellow); }
-.badge.low { background: rgba(148,163,184,0.15); color: var(--text-muted); }
-.badge.all { background: rgba(59,130,246,0.15); color: var(--blue); }
+.badge.low { background: rgba(163,163,163,0.15); color: var(--text-muted); }
+.badge.all { background: rgba(255,255,255,0.15); color: var(--accent); }
 
 .filter-badge {
   cursor: pointer;
@@ -476,7 +476,7 @@ main {
 .check-severity.critical { background: rgba(239,68,68,0.2); color: var(--red); }
 .check-severity.high { background: rgba(249,115,22,0.2); color: var(--orange); }
 .check-severity.medium { background: rgba(234,179,8,0.2); color: var(--yellow); }
-.check-severity.low { background: rgba(148,163,184,0.2); color: var(--text-muted); }
+.check-severity.low { background: rgba(163,163,163,0.2); color: var(--text-muted); }
 
 /* Advisor */
 .advisor-summary {
@@ -504,7 +504,7 @@ main {
 
 .rec-container {
   font-size: 0.8rem;
-  color: var(--blue);
+  color: var(--accent);
   margin-bottom: 0.25rem;
 }
 
@@ -533,7 +533,7 @@ main {
 }
 
 .rec-ref a {
-  color: var(--blue);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -543,7 +543,7 @@ main {
 
 /* Clickable cards */
 .clickable { cursor: pointer; transition: border-color 0.2s; }
-.clickable:hover { border-color: var(--blue); }
+.clickable:hover { border-color: var(--accent); }
 
 /* Hardening detail */
 .hardening-detail { margin-top: 0.75rem; }
